@@ -1,0 +1,523 @@
+---
+title: "중간고사 대체 과제"
+author: "16010391 송경렬"
+date: '2021 4 20 '
+output:
+  word_document: default
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# 보고서
+* r을 공부하는 수업이기 때문에 일반적인 word나 한글이 아닌 r markdown으로 보고서를 작성해 보았습니다.
+
+
+# 데이터 설명 
+* 제가 사용한 소설 작품은 현대소설인 카프카를 읽은 밤, 우리들의 일그러진 영웅, 꺼삐딴 리 입니다.
+* 세 작품 모두 200줄 정도로 데이터의 크기를 대략적으로 맞춰주었습니다.
+* 데이터의 전처리는 3,4,5 번을 푸는 과정 속에서 따로 수행하였습니다.
+
+  
+  
+### 필요한 라이브러리들을 모두 불러오고 readLines를 통해 txt형태로 되어있는 원본 데이터를 불러옵니다.
+
+```{r}
+library(dplyr)
+library(readr)
+library(stringr)
+library(textclean)
+library(tidytext)
+library(KoNLP)
+library(ggplot2)
+library(tidyr)
+
+raw_kafka<-readLines("C:/Users/Administrator/Desktop/새 폴더/The_night_I_read_Kafka.txt",encoding="UTF-8")
+raw_hero<-readLines("C:/Users/Administrator/Desktop/새 폴더/Our_Distorted_Hero.txt",encoding="UTF-8")
+raw_lee<-readLines("C:/Users/Administrator/Desktop/새 폴더/kkeoppittanLee.txt",encoding="UTF-8")
+dic<-read_csv("C:/Users/Administrator/Desktop/새 폴더/Data/knu_sentiment_lexicon.csv")
+
+
+```
+
+  
+
+# 3번
+* View()를 통해 데이터를 살펴보았을 때 <, > , -등의 특수 문자들이 자주 등장하였습니다.
+* <>는 <시티 라이프>등 어떤 명사를 묶어주는 역할을 할 때 쓰였습니다. <,>를 str_replace_all을 통해 없애줄 때 " "로 바꿔주게 되면 <시티 라이프>를 -> 시티 라이프 를 과 같이 명사와 그를 받쳐주는 형태소가 띄어쓰여지게 되어 ""로 바꿔주었습니다.
+
+  
+
+## 작품: 카프카를 읽은 밤
+
+  
+
+### 특수문자들을 제거해주고 tibble형으로 변환
+```{r}
+
+kafka2<-raw_kafka %>% 
+  str_replace_all("<","") %>% 
+  str_replace_all(">","") %>% 
+  str_replace_all("-"," ") %>% 
+  str_squish() %>% 
+  as_tibble()
+
+head(kafka2)
+
+```
+
+  
+
+### 문장별, 단어별
+* 일단 문장 기준 토큰화를 진행해줍니다. 
+* 그 후에 다시 단어기준으로 토큰화를 진행해줍니다. 
+* 이 때 drop = F로 하여 문장과 문장 속 단어들을 같이 표현할 수 있게 해줍니다.
+
+```{r}
+word_kafka<-kafka2 %>% 
+  unnest_tokens(input = value,
+                output = sentence,
+                token = "sentences")
+
+
+word_kafka<-word_kafka %>% 
+  unnest_tokens(input = sentence,
+                output = word,
+                token = "words",
+                drop = F)
+
+```
+
+  
+
+### 감정 점수  및 감정분류
+* 감정사전과 left join을 해줍니다.
+* 감정사전에 없는 단어는 polarity를 0으로 있는 경우에는 감정사전에 있는 polarity를 반영해줍니다.
+
+```{r}
+word_comment_kafka<-word_kafka %>% 
+  left_join(dic,by="word") %>% 
+  mutate(polarity = ifelse(is.na(polarity),0,polarity))
+
+word_comment_kafka<-word_comment_kafka %>% 
+  mutate(sentiment = ifelse(polarity == 2,"pos",ifelse(polarity == -2,"neg","neu")))
+
+word_comment_kafka %>% count(sentiment)
+
+```
+
+  
+
+### 문장별 점수합산
+* 문장별로 분리한 후에 polarity를 합산해 감정 점수를 구합니다.
+* 분석 작업을 그룹별로 처리하지 않도록 ungroup()을 이용해 그룹을 해제합니다.
+```{r}
+kafka_score<-word_comment_kafka %>% 
+  group_by(sentence) %>% 
+  summarise(score = sum(polarity)) %>% 
+  ungroup()
+
+
+```
+#### 나머지 두 작품도 위와 동일한 과정을 수행해줍니다.
+
+  
+
+## 작품: 우리들의 일그러진 영웅
+
+  
+
+### 특수문자들을 제거해주고 tibble형으로 변환
+
+```{r}
+
+hero2<-raw_hero %>% 
+  str_replace_all("<","") %>% 
+  str_replace_all(">","") %>% 
+  str_replace_all("-"," ") %>% 
+  str_squish() %>% 
+  as_tibble()
+
+```
+
+  
+
+### 문장별, 단어별
+
+```{r}
+word_hero<-hero2 %>% 
+  unnest_tokens(input = value,
+                output = sentence,
+                token = "sentences")
+
+word_hero<-word_hero %>% 
+  unnest_tokens(input = sentence,
+                output = word,
+                token = "words",
+                drop = F)
+word_hero
+```
+
+  
+
+### 감정 점수 부여 및 감정 분류
+
+```{r}
+word_comment_hero<-word_hero %>% 
+  left_join(dic,by="word") %>% 
+  mutate(polarity = ifelse(is.na(polarity),0,polarity))
+
+word_comment_hero<-word_comment_hero %>% 
+  mutate(sentiment = ifelse(polarity == 2,"pos",ifelse(polarity == -2,"neg","neu")))
+
+word_comment_hero %>% count(sentiment)
+
+```
+
+  
+
+### 문장별 점수합산
+
+```{r}
+hero_score<-word_comment_hero %>% 
+  group_by(sentence) %>% 
+  summarise(score = sum(polarity)) %>% 
+  ungroup()
+
+
+```
+
+  
+
+## 작품: 꺼삐딴 리
+
+  
+
+### 특수문자들을 제거해주고 tibble형으로 변환
+
+```{r}
+lee2<-raw_lee %>% 
+  str_replace_all("<","") %>% 
+  str_replace_all(">","") %>% 
+  str_replace_all("-"," ") %>% 
+  str_squish() %>% 
+  as_tibble()
+```
+
+  
+
+### 문장별, 단어별
+
+```{r}
+word_lee<-lee2 %>% 
+  unnest_tokens(input = value,
+                output = sentence,
+                token = "sentences")
+word_lee<-word_lee %>% 
+  unnest_tokens(input = sentence,
+                output = word,
+                token = "words",
+                drop = F)
+word_lee
+```
+
+  
+
+### 감정 점수 부여 및 감정 분류
+
+```{r}
+word_comment_lee<-word_lee %>% 
+  left_join(dic,by="word") %>% 
+  mutate(polarity = ifelse(is.na(polarity),0,polarity))
+
+word_comment_lee<-word_comment_lee %>% 
+  mutate(sentiment = ifelse(polarity == 2,"pos",ifelse(polarity == -2,"neg","neu")))
+
+word_comment_lee %>% count(sentiment)
+
+```
+
+  
+
+### 문장별 점수합산
+
+```{r}
+lee_score<-word_comment_lee %>% 
+  group_by(sentence) %>% 
+  summarise(score = sum(polarity)) %>% 
+  ungroup()
+
+
+```
+
+  
+
+# 작품 별 결과물 상위 20개
+
+* 카프카를 읽은 밤
+```{r}
+# 긍정 문장 상위 20개
+kafka_score %>% 
+  arrange(-score) %>% 
+  head(20)
+
+# 부정 문장 상위 20개
+kafka_score %>% 
+  arrange(score) %>% 
+  head(20)
+
+
+```
+
+
+
+* 우리들의 일그러진 영웅
+```{r}
+# 긍정 문장 상위 20개
+hero_score %>% 
+  arrange(-score) %>% 
+  head(20)
+
+# 부정 문장 상위 20개
+hero_score %>% 
+  arrange(score) %>% 
+  head(20)
+
+
+```
+
+\\
+
+* 꺼삐딴 리
+```{r}
+# 긍정 문장 상위 20개
+lee_score %>% 
+  arrange(-score) %>% 
+  head(20)
+
+# 부정 문장 상위 20개
+lee_score %>% 
+  arrange(score) %>% 
+  head(20)
+
+```
+
+
+
+# 4번   
+
+
+### 감정 범주별 단어 빈도 구하기   
+* score 기준으로 문장의 감정을 분류해줍니다.
+* 문장별 감정 점수가 부여된 (작품이름)_score_comment를 단어 기준으로 토큰화 하고 의미를 해석할 수 있게 두 글자 이상의 한글 단어만 남깁니다.
+```{r}
+
+kafka_score_comment<-kafka_score %>% 
+  mutate(sentiment = ifelse(score>=1,"pos",ifelse(score<=-1,"neg","neu")))
+
+comment_kafka<-kafka_score_comment %>% 
+  unnest_tokens(input = sentence,output=word,token="words",drop=F) %>% 
+  filter(str_detect(word,"[가-힣]") & str_count(word)>=2)
+
+hero_score_comment<-hero_score %>% 
+  mutate(sentiment = ifelse(score>=1,"pos",ifelse(score<=-1,"neg","neu")))
+
+comment_hero<-hero_score_comment %>% 
+  unnest_tokens(input = sentence,output=word,token="words",drop=F) %>% 
+  filter(str_detect(word,"[가-힣]") & str_count(word)>=2)
+
+lee_score_comment<-lee_score %>% 
+  mutate(sentiment = ifelse(score>=1,"pos",ifelse(score<=-1,"neg","neu")))
+
+comment_lee<-lee_score_comment %>% 
+  unnest_tokens(input = sentence,output=word,token="words",drop=F) %>% 
+  filter(str_detect(word,"[가-힣]") & str_count(word)>=2)
+```
+
+
+### 감정 범주별 단어 빈도 구하기
+* sentiment별 word의 빈도를 구합니다.
+* 중립 댓글을 제거한 다음 wide form으로 변환해 로그 오즈비를 구합니다.
+
+```{r}
+frequency_kafka<-comment_kafka %>% 
+  count(sentiment,word,sort =T)
+
+kafka_wide<-frequency_kafka %>% 
+  filter(sentiment!="neu") %>% 
+  pivot_wider(names_from = sentiment,
+              values_from = n,values_fill = list(n = 0))
+
+kafka_wide<-kafka_wide %>% 
+  mutate(log_odds_ratio = log(((pos+1)/(sum(pos+1)))/((neg+1)/(sum(neg+1)))))
+
+
+
+frequency_hero<-comment_hero %>% 
+  count(sentiment,word,sort =T)
+
+hero_wide<-frequency_hero %>% 
+  filter(sentiment!="neu") %>% 
+  pivot_wider(names_from = sentiment,
+              values_from = n,values_fill = list(n = 0))
+
+hero_wide<-hero_wide %>% 
+  mutate(log_odds_ratio = log(((pos+1)/(sum(pos+1)))/((neg+1)/(sum(neg+1)))))
+
+
+
+frequency_lee<-comment_lee %>% 
+  count(sentiment,word,sort =T)
+
+lee_wide<-frequency_lee %>% 
+  filter(sentiment!="neu") %>% 
+  pivot_wider(names_from = sentiment,
+              values_from = n,values_fill = list(n = 0))
+
+lee_wide<-lee_wide %>% 
+  mutate(log_odds_ratio = log(((pos+1)/(sum(pos+1)))/((neg+1)/(sum(neg+1)))))
+
+
+head(kafka_wide)
+head(hero_wide)
+head(lee_wide)
+
+```  
+
+
+## 그래프로 결과 확인
+```{r}
+top10_kafka_wide<-kafka_wide %>% 
+  group_by(sentiment = ifelse(log_odds_ratio>0,"pos","neg")) %>% 
+  slice_max(abs(log_odds_ratio),n=10,with_ties = F)
+
+
+
+top10_hero_wide<-hero_wide %>% 
+  group_by(sentiment = ifelse(log_odds_ratio>0,"pos","neg")) %>% 
+  slice_max(abs(log_odds_ratio),n=10,with_ties = F)
+
+
+
+top10_lee_wide<-lee_wide %>% 
+  group_by(sentiment = ifelse(log_odds_ratio>0,"pos","neg")) %>% 
+  slice_max(abs(log_odds_ratio),n=10,with_ties = F)
+
+
+
+ggplot(top10_kafka_wide,aes(x = reorder(word,log_odds_ratio),
+                            y = log_odds_ratio,
+                            fill = sentiment)) +
+  geom_col() + coord_flip() + labs(title ="카프카를 읽은 밤", x=NULL)
+
+
+
+ggplot(top10_hero_wide,aes(x = reorder(word,log_odds_ratio),
+                            y = log_odds_ratio,
+                            fill = sentiment)) +
+  geom_col() + coord_flip() + labs(title = "우리들의 일그러진 영웅",x=NULL)
+
+
+
+ggplot(top10_lee_wide,aes(x = reorder(word,log_odds_ratio),
+                            y = log_odds_ratio,
+                            fill = sentiment)) +
+  geom_col() + coord_flip() + labs(title = "꺼삐딴 리",x=NULL)
+
+```
+
+
+# 5번
+
+
+### tibble구조로 변환 및 소설명 변수 추가
+* raw data들을 tibble형으로 바꿔줍니다.
+* 데이터가 어느 소설에 해당하는지 구분하기 위해 novel이라는 변수를 추가합니다. 
+```{r}
+kafka<-raw_kafka %>% 
+  as_tibble() %>% 
+  mutate(novel = "kafka")
+hero<-raw_hero %>% 
+  as_tibble() %>% 
+  mutate(novel = "hero")
+lee<-raw_lee %>% 
+  as_tibble() %>% 
+  mutate(novel = "lee")
+```
+
+
+
+### 세 데이터 합치기
+* 앞서 tibble형 변환 후 novel 변수를 추가한 세 작품의 데이터를 합쳐줍니다.
+```{r}
+bind_novel<-bind_rows(kafka,hero,lee) %>% select(novel,value)
+bind_novel
+```
+
+
+### 전처리, 토큰화, 단어 빈도
+* 전처리: 특수문자들을 모두 제거해줍니다.
+* 명사 토큰화: 명사로 토큰화해줍니다.
+* 단어 빈도 구하기: 길이가 2 이상인 단어들만 개수를 세줍니다.
+```{r}
+novels<-bind_novel %>% 
+  mutate(value = str_replace_all(value,"[^가-힣]"," "),
+         value = str_squish(value))
+
+
+novels <- novels %>% 
+  unnest_tokens(input = value,
+                output = word,
+                token = extractNoun)
+
+frequency<-novels %>% 
+  count(novel,word) %>% 
+  filter(str_count(word)>1)
+frequency
+
+```
+
+
+
+### TF-IDF 구하기
+```{r}
+frequency<-frequency %>% 
+  bind_tf_idf(term = word,
+              document = novel,
+              n = n) %>% 
+  arrange(-tf_idf)
+frequency
+```
+
+
+
+### 중요단어 상위 10개 추출
+```{r}
+top10<-frequency %>% 
+  group_by(novel) %>% 
+  slice_max(tf_idf,n= 10, with_ties = F)
+top10
+```
+
+## 그래프로 결과 확인
+
+```{r}
+# 그래프 순서 정하기
+top10$novel<-factor(top10$novel,level = c("kafka","hero","lee"))
+
+# 막대 그래프 만들기
+ggplot(top10,aes(x=reorder_within(word,tf_idf,novel),
+                 y = tf_idf, fill = novel))+
+  geom_col(show.legend = T) +
+  coord_flip() + facet_wrap(~novel,scales = "free", ncol = 2)+
+  scale_x_reordered() + labs(x = NULL)
+
+```
+
+
+
+
+  
