@@ -1,6 +1,6 @@
 ---
-title: "중간고사 대체 과제"
-author: "16010391 송경렬"
+title: "현대소설 텍스트 마이닝"
+author: "송경렬"
 date: '2021 4 20 '
 output:
   word_document: default
@@ -12,14 +12,11 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-# 보고서
-* r을 공부하는 수업이기 때문에 일반적인 word나 한글이 아닌 r markdown으로 보고서를 작성해 보았습니다.
-
 
 # 데이터 설명 
 * 제가 사용한 소설 작품은 현대소설인 카프카를 읽은 밤, 우리들의 일그러진 영웅, 꺼삐딴 리 입니다.
 * 세 작품 모두 200줄 정도로 데이터의 크기를 대략적으로 맞춰주었습니다.
-* 데이터의 전처리는 3,4,5 번을 푸는 과정 속에서 따로 수행하였습니다.
+
 
   
   
@@ -35,17 +32,17 @@ library(KoNLP)
 library(ggplot2)
 library(tidyr)
 
-raw_kafka<-readLines("C:/Users/Administrator/Desktop/새 폴더/The_night_I_read_Kafka.txt",encoding="UTF-8")
-raw_hero<-readLines("C:/Users/Administrator/Desktop/새 폴더/Our_Distorted_Hero.txt",encoding="UTF-8")
-raw_lee<-readLines("C:/Users/Administrator/Desktop/새 폴더/kkeoppittanLee.txt",encoding="UTF-8")
-dic<-read_csv("C:/Users/Administrator/Desktop/새 폴더/Data/knu_sentiment_lexicon.csv")
+raw_kafka<-readLines("C:/Users/Song/Desktop/textminig/tmn/Data/Data/The_night_I_read_Kafka.txt",encoding="UTF-8")
+raw_hero<-readLines("C:/Users/Song/Desktop/textminig/tmn/Data/Data/Our_Distorted_Hero.txt",encoding="UTF-8")
+raw_lee<-readLines("C:/Users/Song/Desktop/textminig/tmn/Data/Data/kkeoppittanLee.txt",encoding="UTF-8")
+dic<-read_csv("C:/Users/Song/Desktop/textminig/tmn/Data/Data/knu_sentiment_lexicon.csv")
 
 
 ```
 
   
 
-# 3번
+# 문장별 감정 점수확인하기
 * View()를 통해 데이터를 살펴보았을 때 <, > , -등의 특수 문자들이 자주 등장하였습니다.
 * <>는 <시티 라이프>등 어떤 명사를 묶어주는 역할을 할 때 쓰였습니다. <,>를 str_replace_all을 통해 없애줄 때 " "로 바꿔주게 되면 <시티 라이프>를 -> 시티 라이프 를 과 같이 명사와 그를 받쳐주는 형태소가 띄어쓰여지게 되어 ""로 바꿔주었습니다.
 
@@ -307,7 +304,7 @@ lee_score %>%
 
 
 
-# 4번   
+# 작품의 감정 범주별 단어빈도를 로그오즈비를 통해 나타내기   
 
 
 ### 감정 범주별 단어 빈도 구하기   
@@ -430,7 +427,7 @@ ggplot(top10_lee_wide,aes(x = reorder(word,log_odds_ratio),
 ```
 
 
-# 5번
+# 작품별 중요단어를 TF-IDF를 통해 나타내기
 
 
 ### tibble구조로 변환 및 소설명 변수 추가
@@ -517,7 +514,9 @@ ggplot(top10,aes(x=reorder_within(word,tf_idf,novel),
 
 ```
 
-
-
+# 결과분석
+* 카프카를 읽은 밤에서는 그녀 라는 단어가 다른 작품에 비해서 많이 사용된 것을 확인할 수 있었습니다.
+* 우리들의 일그러진 영웅에서는 급장과 담임선생 이 두 단어가 다른 작품에 비해 많이 사용되었습니다. 아마 학창시절을 다루는 소설이다보니 이 두 단어가 다른 작품에 비해 많이 사용된 것 같습니다.
+* 꺼삐딴 리 작품에서는 이인국과 박사라는 단어가 다른 작품에 비해 많이 사용되었습니다. 꺼삐딴 리의 작 중 주인공이 이인국 박사라는 점을 고려해 보았을 때 어찌보면 당연한 결과일 수도 있다는 생각이 들었습니다.
 
   
